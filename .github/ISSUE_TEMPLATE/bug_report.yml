@@ -1,0 +1,22 @@
+name: Bug report / 不具合報告
+description: Report a reproducible launcher problem.
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior / 期待した動作と実際の動作
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps / 再現手順
+      description: Replace personal project paths, account details and identifiers with placeholders.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Shareable report / 共有用レポート
+      description: Paste shareable-report.json, not raw Xcode logs. / 生のXcodeログではなく共有用レポートを貼ってください。
+      render: json

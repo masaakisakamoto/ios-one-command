@@ -1,0 +1,84 @@
+name: Verify
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.9', '3.13']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -s tests
+      - run: for script in ios-one Try_Demo.command Verify_On_Mac.command Publish_GitHub.command; do bash -n "$script"; done
+      - run: python scripts/package_release.py
+      - run: git diff --exit-code -- public-files.json
+  simulator:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python3 -m unittest discover -s tests
+      - run: python3 scripts/simulator_smoke.py
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check public commit email identities
+        run: python3 scripts/check_commit_identity.py
+      - name: Scan Git history with Gitleaks 8.30.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          scanner_dir="$RUNNER_TEMP/ios-one-gitleaks"
+          mkdir -p "$scanner_dir"
+          curl --fail --silent --show-error --location \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            --output "$scanner_dir/gitleaks.tar.gz"
+          printf '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  %s\n' "$scanner_dir/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$scanner_dir/gitleaks.tar.gz" -C "$scanner_dir" gitleaks
+          "$scanner_dir/gitleaks" git --redact --no-banner --log-opts="--all" .
+  release:
+    needs: [python, simulator, secrets]
+    if: >-
+      github.repository == 'masaakisakamoto/ios-one-command' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: preview-release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - run: python3 scripts/package_release.py
+      - run: git diff --exit-code -- public-files.json
+      - name: Publish verified preview assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release_github.py
