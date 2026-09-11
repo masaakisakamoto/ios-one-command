@@ -2,7 +2,7 @@
 
 Version: **0.1.0-preview.1**. Prepared on **2026-09-11**.
 
-Automated result: **63 tests passed** on Linux with **Python 3.12.14**.
+Automated result: **70 tests passed** on Linux with **Python 3.12.14**.
 All Python sources also passed a Python 3.9 grammar check. That is a syntax
 check, not a claim that the complete suite ran under Python 3.9 locally.
 
@@ -21,7 +21,8 @@ check, not a claim that the complete suite ran under Python 3.9 locally.
 | Physical iPad | PENDING | No iPad evidence supplied |
 | Existing third-party project | PENDING | Verify one simple app and one prepared workspace |
 | Second developer's Mac | PENDING | Collect a separate reproduction report |
-| GitHub Actions | Mixed — reviewed before repository reinitialization | Initial run passed; a later Simulator GUI launch timed out. New run required after reinitialization |
+| Headless Simulator control flow and failure propagation | PASS on Linux | Boot/install/launch scenarios; no Xcode execution claim |
+| GitHub Actions | Corrected smoke PENDING | New public history passed 63 tests on three Python versions and email/Gitleaks checks; Simulator GUI timed out. See the run below |
 | Publication preflight on the Mac | PASS — user-supplied terminal result | Corrected pre-publication tests passed before the initial push |
 | Public repository creation | PASS | Public repository and initial source tree verified |
 
@@ -67,6 +68,21 @@ Subsequent release publication requires the current commit's Python tests,
 Simulator smoke and Gitleaks history scan to pass. The release's Git tag records
 the exact source commit. Historical results above do not establish that the
 new repository's current commit has passed; new runs provide that evidence.
+
+## Simulator CI correction after republication
+
+[Verify run 34612379265](https://github.com/masaakisakamoto/ios-one-command/actions/runs/34612379265)
+tested the new root commit `4801bc0c83e01bec8293fcdfe9b5c7ee27778c44`.
+All 63 tests passed on Python 3.9/3.13 (Linux) and 3.11 (macOS), as did public
+commit-email checks and the Gitleaks history scan. Xcode 26.6 built the demo,
+and the iPhone 17 / iOS 26.5 Simulator finished booting. Opening the Simulator
+window exceeded the 30-second timeout, so install/launch and release did not run.
+
+The corrected smoke requests `--headless`: it still builds, boots, installs and
+launches through the normal CLI, without requiring a Simulator window. Seven
+regression tests cover option scope, normal window behavior, command order and
+failure propagation. The resulting 70-test suite passed on Linux. A new Mac CI
+run is required to validate this corrected smoke before publishing release assets.
 
 ## Mac acceptance record
 

@@ -103,6 +103,24 @@ class SigningAndParsingTests(unittest.TestCase):
         self.assertIsNone(args.team)
         self.assertEqual(args.app_args, ["--team", "literal", "$(literal)"])
 
+    def test_headless_requires_explicit_simulator_run_or_demo(self):
+        for command in ("run", "demo"):
+            with self.subTest(command=command):
+                args = cli.parse_args([command, "--simulator", "SIM-A", "--headless"])
+                self.assertTrue(args.headless)
+                self.assertEqual(args.simulator, "SIM-A")
+        for arguments in (["run", "--headless"], ["run", "--device", "--headless"],
+                          ["verify", "--headless"], ["doctor", "--headless"], ["report", "--headless"]):
+            with self.subTest(arguments=arguments):
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as result:
+                    cli.parse_args(arguments)
+                self.assertEqual(result.exception.code, 2)
+
+    def test_headless_app_argument_does_not_disable_simulator_window(self):
+        args = cli.parse_args(["run", "--simulator", "--", "--headless"])
+        self.assertFalse(args.headless)
+        self.assertEqual(args.app_args, ["--headless"])
+
     def test_verify_rejects_device_and_application_arguments(self):
         for args in (["verify", "--device"], ["verify", "--", "arg"]):
             with self.subTest(args=args):
@@ -316,6 +334,46 @@ class WorkflowTests(unittest.TestCase):
         runner, error = self.run_scenario()
         self.assertEqual(error.code, "IOS_VERSION")
         self.assertNotIn("build", [label for _, label in runner.calls])
+
+    def test_headless_simulator_builds_boots_installs_and_launches_without_gui(self):
+        self.target = cli.Target("TEST-SIM", "Test Simulator", "18.0", "simulator", "Shutdown")
+        runner, error = self.run_scenario(extra_args=["--simulator", "TEST-SIM", "--headless", "--", "$(literal)"])
+        self.assertIsNone(error)
+        labels = [label for _, label in runner.calls]
+        self.assertNotIn("open-simulator", labels)
+        required = ["build", "boot-simulator", "wait-simulator", "install", "launch"]
+        self.assertEqual([label for label in labels if label in required], required)
+        launch = next(args for args, label in runner.calls if label == "launch")
+        self.assertEqual(launch, ["/usr/bin/xcrun", "simctl", "launch", "--terminate-running-process",
+                                  "TEST-SIM", "org.example.App", "$(literal)"])
+        self.assertEqual(runner.summary["launch"], "passed")
+
+    def test_normal_simulator_still_opens_gui_with_no_input(self):
+        self.target = cli.Target("TEST-SIM", "Test Simulator", "18.0", "simulator", "Booted")
+        runner, error = self.run_scenario(extra_args=["--simulator", "TEST-SIM"])
+        self.assertIsNone(error)
+        labels = [label for _, label in runner.calls]
+        self.assertNotIn("boot-simulator", labels)
+        self.assertLess(labels.index("wait-simulator"), labels.index("open-simulator"))
+        self.assertLess(labels.index("open-simulator"), labels.index("install"))
+
+    def test_headless_boot_wait_failure_never_installs_or_launches(self):
+        self.target = cli.Target("TEST-SIM", "Test Simulator", "18.0", "simulator", "Shutdown")
+        runner, error = self.run_scenario(fail_step="wait-simulator", extra_args=["--simulator", "TEST-SIM", "--headless"])
+        self.assertIsNotNone(error)
+        self.assertFalse({"install", "launch"} & {label for _, label in runner.calls})
+
+    def test_headless_install_failure_never_launches(self):
+        self.target = cli.Target("TEST-SIM", "Test Simulator", "18.0", "simulator", "Booted")
+        runner, error = self.run_scenario(fail_step="install", extra_args=["--simulator", "TEST-SIM", "--headless"])
+        self.assertIsNotNone(error)
+        self.assertNotIn("launch", [label for _, label in runner.calls])
+
+    def test_headless_launch_failure_is_not_reported_as_success(self):
+        self.target = cli.Target("TEST-SIM", "Test Simulator", "18.0", "simulator", "Booted")
+        runner, error = self.run_scenario(fail_step="launch", extra_args=["--simulator", "TEST-SIM", "--headless"])
+        self.assertIsNotNone(error)
+        self.assertNotEqual(runner.summary["launch"], "passed")
 
 
 if __name__ == "__main__":

@@ -415,7 +415,7 @@ def verify_product(settings, state, expected_bundle):
     return app
 
 
-def install_and_launch(runner, target, app, bundle_id, app_args):
+def install_and_launch(runner, target, app, bundle_id, app_args, headless=False):
     if target.kind == "device":
         runner.run(["/usr/bin/xcrun", "devicectl", "device", "install", "app", "--device", target.identifier, app], "install", timeout=300)
         runner.summary["install"] = "passed"
@@ -426,8 +426,9 @@ def install_and_launch(runner, target, app, bundle_id, app_args):
         if target.state != "Booted":
             runner.run(["/usr/bin/xcrun", "simctl", "boot", target.identifier], "boot-simulator", timeout=120)
         runner.run(["/usr/bin/xcrun", "simctl", "bootstatus", target.identifier, "-b"], "wait-simulator", timeout=600)
-        simulator = Path(runner.env["DEVELOPER_DIR"]) / "Applications/Simulator.app"
-        runner.run(["/usr/bin/open", "-a", simulator, "--args", "-CurrentDeviceUDID", target.identifier], "open-simulator", timeout=30)
+        if not headless:
+            simulator = Path(runner.env["DEVELOPER_DIR"]) / "Applications/Simulator.app"
+            runner.run(["/usr/bin/open", "-a", simulator, "--args", "-CurrentDeviceUDID", target.identifier], "open-simulator", timeout=30)
         runner.run(["/usr/bin/xcrun", "simctl", "install", target.identifier, app], "install", timeout=120)
         runner.summary["install"] = "passed"
         runner.summary["launch"] = "running"
@@ -528,8 +529,11 @@ def workflow(args, runner, container):
     app = verify_product(settings, runner.state, expected_bundle)
     if target:
         runner.summary["install"] = "running"
-        install_and_launch(runner, target, app, expected_bundle, args.app_args)
-        print(tr("起動コマンドが成功しました。端末の画面を確認してください。", "Launch command succeeded. Check the app on your device."), flush=True)
+        install_and_launch(runner, target, app, expected_bundle, args.app_args, headless=args.headless)
+        if args.headless:
+            print(tr("Simulatorでアプリの起動コマンドが成功しました（画面は開いていません）。", "Simulator app launch command succeeded (no window opened)."), flush=True)
+        else:
+            print(tr("起動コマンドが成功しました。端末の画面を確認してください。", "Launch command succeeded. Check the app on your device."), flush=True)
     else:
         print(tr("Simulator向けビルドが成功しました。実機動作は別途確認してください。", "Simulator build passed. Physical-device behavior needs separate verification."), flush=True)
 
@@ -549,6 +553,7 @@ def parse_args(argv=None):
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--device", nargs="?", const="auto", help="iPhone/iPad ID or exact name / 実機")
     group.add_argument("--simulator", nargs="?", const="auto", help="Simulator ID or exact name")
+    parser.add_argument("--headless", action="store_true", help="skip the Simulator window; requires --simulator / Simulatorの画面を開かない")
     parser.add_argument("--team", help="10-character Apple Team ID")
     parser.add_argument("--bundle-id", help="single-bundle schemes only / 複数BundleのSchemeでは使用不可")
     parser.add_argument("--configuration", default="Debug")
@@ -562,6 +567,8 @@ def parse_args(argv=None):
         parser.error("--timeout must be positive")
     if args.command in {"verify", "doctor", "report"} and (args.device is not None or args.simulator is not None or app_args):
         parser.error("--device, --simulator and app arguments apply only to run/demo")
+    if args.headless and (args.command not in {"run", "demo"} or args.simulator is None):
+        parser.error("--headless requires --simulator and applies only to run/demo")
     if args.command == "demo" and (args.project or args.scheme or args.app_target):
         parser.error("demo uses the bundled HelloDevice project")
     args.app_args = app_args

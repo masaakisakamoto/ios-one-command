@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mac-only smoke check: build, install and launch the bundled demo in Simulator."""
+"""Mac-only smoke check: build, install and launch the demo without a Simulator window."""
 import json
 from pathlib import Path
 import subprocess
@@ -18,7 +18,8 @@ def main():
     targets.sort(key=lambda t: (t.state != "Booted", tuple(-v for v in version(t.os_version)), t.name, t.identifier))
     target = targets[0]
     print("Simulator smoke target: " + target.name + " / " + target.os_version, flush=True)
-    return subprocess.call(["/bin/bash", str(ROOT / "ios-one"), "demo", "--simulator", target.identifier, "--no-input", "--lang", "en"])
+    return subprocess.call(["/bin/bash", str(ROOT / "ios-one"), "demo", "--simulator", target.identifier,
+                            "--headless", "--no-input", "--lang", "en"])
 
 
 if __name__ == "__main__":

@@ -36,3 +36,10 @@ Commit identity update, 2026-09-11: prepare a fresh repository history using
 `developer@example.invalid` and add a check for public author/committer email
 addresses. Preserve the current source and remove links to obsolete history.
 The app launcher and demo runtime sources remain unchanged.
+
+Simulator CI correction, 2026-09-11: the new public repository passed all 63
+tests on Linux/macOS and its commit-email/Gitleaks checks. Simulator boot and
+build succeeded, but opening its GUI timed out again. Add an explicit
+`run/demo --simulator --headless` mode and use it in the smoke script, preserving
+boot, install and launch failure checks. Normal Simulator use still opens its
+window. All 70 tests passed on Linux; the corrected Mac smoke awaits CI.

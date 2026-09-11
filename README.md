@@ -97,6 +97,10 @@ Common options: `--project`, `--scheme`, `--device [ID_OR_NAME]`,
 `--simulator [ID_OR_NAME]`, `--app-target`, `--team`, `--configuration`,
 `--xcode`, `--no-input`, `--lang ja|en`, `--timeout SECONDS`.
 
+For automation, add `--headless` to `run/demo --simulator` to build, install and
+launch without opening the Simulator window. Boot and launch failures still stop
+the command. The CI smoke check uses this mode; it does not verify visible UI.
+
 ```bash
 bash ios-one doctor --lang ja
 bash ios-one run --project "/path/to/MyApp.xcodeproj" --team YOURTEAMID

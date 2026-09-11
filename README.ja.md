@@ -82,10 +82,14 @@ bash ios-one run --project "/path/to/MyApp.xcworkspace" --scheme MyApp --device 
 | 保存済みの端末を選び直す | `--device`または`--simulator`を付ける |
 | Teamを明示する | `--team 実際の10桁のTeamID` |
 | 複数候補があるとき自動実行を止める | `--no-input`を付ける |
+| 自動テストでSimulatorの画面を開かず起動 | `run/demo --simulator`に`--headless`を付ける |
 | 別のXcodeを使う | `--xcode /Applications/Xcode.app` |
 
 Scheme・端末などの選択は次回に引き継ぎます。保存した端末が使えないときは案内して停止します。
 初回に実機が見つからない場合も、Simulatorへの切り替えは`--simulator`で明示します。
+
+CIは`--headless`でビルド・インストール・アプリ起動を確認します。
+起動やインストールの失敗は停止します。画面表示・タッチ操作は別途確認が必要です。
 
 既存のXcodeプロジェクトに署名設定がある場合はそれを使います。
 `--team`を指定した場合は、選択Scheme全体のTeamと自動署名を上書き指定します。
